@@ -110,7 +110,7 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          tags: boylikaI-api:ci
+          tags: boylikai-api:ci
 
       - name: Build Bot image (no push)
         uses: docker/build-push-action@v6
@@ -120,4 +120,4 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          tags: boylikaI-bot:ci
+          tags: boylikai-bot:ci
