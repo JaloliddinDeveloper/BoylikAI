@@ -5,10 +5,11 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-source /opt/boylikaI/.env
+DOMAIN=$(grep ^DOMAIN= /opt/boylikaI/.env | cut -d= -f2-)
+EMAIL=$(grep ^LETSENCRYPT_EMAIL= /opt/boylikaI/.env | cut -d= -f2-)
 
-DOMAIN="${DOMAIN:?DOMAIN not set in .env}"
-EMAIL="${LETSENCRYPT_EMAIL:?LETSENCRYPT_EMAIL not set in .env}"
+[ -z "$DOMAIN" ] && { echo "ERROR: DOMAIN not set in .env"; exit 1; }
+[ -z "$EMAIL"  ] && { echo "ERROR: LETSENCRYPT_EMAIL not set in .env"; exit 1; }
 APP_DIR="/opt/boylikaI"
 
 cd "$APP_DIR"
