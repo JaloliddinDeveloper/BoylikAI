@@ -2,14 +2,14 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # BoylikAI — DigitalOcean Ubuntu Server Initial Setup
 # Run once as root on a fresh Ubuntu 22.04/24.04 droplet:
-#   curl -fsSL https://raw.githubusercontent.com/your-org/boylikaI/main/scripts/setup-server.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/JaloliddinDeveloper/BoylikAI/master/scripts/setup-server.sh | bash
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-DOMAIN="${DOMAIN:-api.yourdomain.com}"
+DOMAIN="${DOMAIN:-api.fastergo.uz}"
 APP_USER="boylikaI"
 APP_DIR="/opt/boylikaI"
-GITHUB_REPO="${GITHUB_REPO:-your-org/boylikaI}"
+GITHUB_REPO="${GITHUB_REPO:-JaloliddinDeveloper/BoylikAI}"
 
 echo "==> [1/8] System update"
 apt-get update -qq && apt-get upgrade -y -qq
