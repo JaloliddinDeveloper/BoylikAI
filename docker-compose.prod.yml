@@ -42,7 +42,7 @@ services:
 
   # ── API ───────────────────────────────────────────────────────────────────
   api:
-    image: ghcr.io/${GITHUB_REPO}/boylikaI-api:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_REPO}/boylikai-api:${IMAGE_TAG:-latest}
     container_name: boylikaI-api
     restart: unless-stopped
     environment:
@@ -78,7 +78,7 @@ services:
 
   # ── Migration Runner — runs once before API starts ────────────────────────
   migrate:
-    image: ghcr.io/${GITHUB_REPO}/boylikaI-api:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_REPO}/boylikai-api:${IMAGE_TAG:-latest}
     container_name: boylikaI-migrate
     command: ["./efbundle", "--connection", "Host=postgres;Port=5432;Database=boylikaidb;Username=boylikaiadmin;Password=${POSTGRES_PASSWORD}"]
     environment:
@@ -92,7 +92,7 @@ services:
 
   # ── Telegram Bot Worker ───────────────────────────────────────────────────
   bot:
-    image: ghcr.io/${GITHUB_REPO}/boylikaI-bot:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_REPO}/boylikai-bot:${IMAGE_TAG:-latest}
     container_name: boylikaI-bot
     restart: unless-stopped
     environment:

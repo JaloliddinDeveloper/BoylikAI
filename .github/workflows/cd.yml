@@ -54,8 +54,8 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,scope=api,mode=max
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikaI-api:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikaI-api:latest
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikai-api:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikai-api:latest
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -70,8 +70,8 @@ jobs:
           cache-from: type=gha,scope=bot
           cache-to: type=gha,scope=bot,mode=max
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikaI-bot:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikaI-bot:latest
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikai-bot:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikai-bot:latest
 
   # ── Deploy to DigitalOcean ────────────────────────────────────────────────
   deploy:
@@ -124,7 +124,7 @@ jobs:
             # Wait for health check to pass
             echo "Waiting for API health check..."
             timeout 120 bash -c \
-              'until docker exec boylikaI-api wget -qO- http://localhost:8080/health > /dev/null; do sleep 3; done'
+              'until docker exec boylikai-api wget -qO- http://localhost:8080/health > /dev/null; do sleep 3; done'
 
             # Clean up old images
             docker image prune -f
