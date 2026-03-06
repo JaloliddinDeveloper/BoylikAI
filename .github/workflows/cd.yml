@@ -40,7 +40,9 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        run: echo "version=${{ github.sha }}" >> $GITHUB_OUTPUT
+        run: |
+          echo "version=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "repo_owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       # ── API Image ─────────────────────────────────────────────────────────
       - name: Build & push API image
@@ -52,8 +54,8 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,scope=api,mode=max
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/boylikaI-api:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/boylikaI-api:latest
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikaI-api:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikaI-api:latest
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -68,8 +70,8 @@ jobs:
           cache-from: type=gha,scope=bot
           cache-to: type=gha,scope=bot,mode=max
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/boylikaI-bot:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/boylikaI-bot:latest
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikaI-bot:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.repo_owner }}/boylikaI-bot:latest
 
   # ── Deploy to DigitalOcean ────────────────────────────────────────────────
   deploy:

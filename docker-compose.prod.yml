@@ -1,5 +1,3 @@
-version: "3.9"
-
 # Production Docker Compose — DigitalOcean Ubuntu deployment
 # Secrets come from .env file on the server (never committed to git)
 # Images are pulled from GitHub Container Registry (ghcr.io)
