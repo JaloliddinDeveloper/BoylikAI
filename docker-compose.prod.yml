@@ -71,7 +71,6 @@ services:
         condition: service_completed_successfully
     networks:
       - boylikaI-net
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 30s
