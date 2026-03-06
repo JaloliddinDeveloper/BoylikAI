@@ -1,0 +1,40 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.trx
+coverage/
+*.coverage
+*.coveragexml
+
+# Environment secrets — NEVER commit
+.env
+.env.production
+.env.local
+
+# Docker override files
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# EF Migrations bundle
+efbundle
+efbundle.exe
+
+# JetBrains
+.idea/
+*.DotSettings.user
+
+# Visual Studio Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Node (if any tooling)
+node_modules/

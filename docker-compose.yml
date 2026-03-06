@@ -1,0 +1,168 @@
+version: "3.9"
+
+services:
+  # ── Backend API ──────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: src/BoylikAI.API/Dockerfile
+    container_name: boylikaI-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=boylikaidb;Username=boylikaiadmin;Password=${POSTGRES_PASSWORD}
+      - ConnectionStrings__Redis=redis:6379,abortConnect=false
+      - Anthropic__ApiKey=${ANTHROPIC_API_KEY}
+      - Telegram__BotToken=${TELEGRAM_BOT_TOKEN}
+      - Telegram__WebhookSecret=${TELEGRAM_WEBHOOK_SECRET}
+      - Telegram__WebhookUrl=${TELEGRAM_WEBHOOK_URL}
+      - Seq__Url=http://seq:5341
+      - Otlp__Endpoint=http://otel-collector:4317
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - boylikaI-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Telegram Bot Worker ──────────────────────────────────────────
+  bot:
+    build:
+      context: .
+      dockerfile: src/BoylikAI.TelegramBot/Dockerfile
+    container_name: boylikaI-bot
+    restart: unless-stopped
+    environment:
+      - DOTNET_ENVIRONMENT=Docker
+      - ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=boylikaidb;Username=boylikaiadmin;Password=${POSTGRES_PASSWORD}
+      - ConnectionStrings__Redis=redis:6379,abortConnect=false
+      - Anthropic__ApiKey=${ANTHROPIC_API_KEY}
+      - Telegram__BotToken=${TELEGRAM_BOT_TOKEN}
+      - Seq__Url=http://seq:5341
+    depends_on:
+      - api
+    networks:
+      - boylikaI-net
+
+  # ── PostgreSQL ───────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: boylikaI-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: boylikaidb
+      POSTGRES_USER: boylikaiadmin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - boylikaI-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U boylikaiadmin -d boylikaidb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: boylikaI-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save 60 1
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - boylikaI-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── Seq (Structured Logging) ─────────────────────────────────────
+  seq:
+    image: datalust/seq:latest
+    container_name: boylikaI-seq
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - seq_data:/data
+    ports:
+      - "5341:80"
+    networks:
+      - boylikaI-net
+
+  # ── Prometheus ───────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: boylikaI-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+    ports:
+      - "9090:9090"
+    networks:
+      - boylikaI-net
+
+  # ── Grafana ──────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: boylikaI-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - boylikaI-net
+
+  # ── OpenTelemetry Collector ──────────────────────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: boylikaI-otel
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./docker/otel/otel-collector-config.yml:/etc/otel-collector-config.yml
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - boylikaI-net
+
+networks:
+  boylikaI-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  seq_data:
+  prometheus_data:
+  grafana_data:
