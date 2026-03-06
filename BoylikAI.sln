@@ -14,6 +14,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BoylikAI.TelegramBot", "src
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BoylikAI.Integration.Tests", "tests\BoylikAI.Integration.Tests\BoylikAI.Integration.Tests.csproj", "{66666666-6666-6666-6666-666666666666}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BoylikAI.Domain.Tests", "tests\BoylikAI.Domain.Tests\BoylikAI.Domain.Tests.csproj", "{77777777-7777-7777-7777-777777777777}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BoylikAI.Application.Tests", "tests\BoylikAI.Application.Tests\BoylikAI.Application.Tests.csproj", "{88888888-8888-8888-8888-888888888888}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,6 +48,14 @@ Global
 		{66666666-6666-6666-6666-666666666666}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{66666666-6666-6666-6666-666666666666}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{66666666-6666-6666-6666-666666666666}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77777777-7777-7777-7777-777777777777}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77777777-7777-7777-7777-777777777777}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77777777-7777-7777-7777-777777777777}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77777777-7777-7777-7777-777777777777}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88888888-8888-8888-8888-888888888888}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88888888-8888-8888-8888-888888888888}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88888888-8888-8888-8888-888888888888}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88888888-8888-8888-8888-888888888888}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

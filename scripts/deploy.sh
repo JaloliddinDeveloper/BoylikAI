@@ -13,8 +13,8 @@ COMPOSE="docker compose -f ${APP_DIR}/docker-compose.prod.yml"
 cd "$APP_DIR"
 
 echo "==> [1/5] Pulling latest config from git..."
-git fetch origin main
-git reset --hard origin/main
+git fetch origin master
+git reset --hard origin/master
 
 echo "==> [2/5] Pulling Docker images (tag: ${IMAGE_TAG})..."
 export IMAGE_TAG

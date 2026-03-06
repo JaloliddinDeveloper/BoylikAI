@@ -2,7 +2,7 @@ name: CD — Deploy to DigitalOcean
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
     inputs:
       image_tag:
@@ -94,8 +94,8 @@ jobs:
             cd /opt/boylikaI
 
             # Pull latest config from git
-            git fetch origin main
-            git reset --hard origin/main
+            git fetch origin master
+            git reset --hard origin/master
 
             # Authenticate to GitHub Container Registry
             echo "${{ secrets.GITHUB_TOKEN }}" | \
