@@ -14,7 +14,7 @@ using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Serilog ──────────────────────────────────────────────────────────────────
+// ── Serilog ──────────────────────────────────────────────────────────────────-
 builder.Host.UseSerilog((ctx, lc) => lc
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
