@@ -46,13 +46,13 @@ public sealed class ClaudeAdviceGenerator : IAdviceGenerator
                 MaxTokens = 800,
                 Messages = new List<Message>
                 {
-                    new() { Role = RoleType.User, Content = prompt }
+                    new(RoleType.User, prompt)
                 },
-                System = GetSystemPrompt(languageCode)
+                SystemMessage = GetSystemPrompt(languageCode)
             };
 
             var response = await _client.Messages.GetClaudeMessageAsync(request, ct);
-            var content = response.Content.FirstOrDefault()?.ToString() ?? string.Empty;
+            var content = response.Message.ToString() ?? string.Empty;
 
             // Structured JSON javob parse qilish
             var json = ExtractJson(content);

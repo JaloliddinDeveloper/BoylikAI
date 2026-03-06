@@ -98,7 +98,7 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
             .HasDatabaseName("ix_transactions_analytics_covering");
 
         builder.HasOne(t => t.User)
-            .WithMany(u => u.Transactions)
+            .WithMany()
             .HasForeignKey(t => t.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 

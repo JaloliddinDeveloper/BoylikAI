@@ -82,9 +82,7 @@ public static class DependencyInjection
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
-            .UsePostgreSqlStorage(c =>
-                c.UseNpgsqlClientFactory(
-                    configuration.GetConnectionString("Postgres")!)));
+            .UsePostgreSqlStorage(configuration.GetConnectionString("Postgres")!));
 
         if (includeHangfireServer)
         {

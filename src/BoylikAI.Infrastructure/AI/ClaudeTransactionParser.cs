@@ -77,13 +77,13 @@ public sealed class ClaudeTransactionParser : ITransactionParser
                 MaxTokens = 512,
                 Messages = new List<Message>
                 {
-                    new() { Role = RoleType.User, Content = prompt }
+                    new(RoleType.User, prompt)
                 },
-                System = GetSystemPrompt()
+                SystemMessage = GetSystemPrompt()
             };
 
             var response = await _client.Messages.GetClaudeMessageAsync(request, ct);
-            var content = response.Content.FirstOrDefault()?.ToString() ?? string.Empty;
+            var content = response.Message.ToString() ?? string.Empty;
 
             var json = ExtractJson(content);
             if (string.IsNullOrEmpty(json))
@@ -220,10 +220,10 @@ public sealed class ClaudeTransactionParser : ITransactionParser
     /// Foydalanuvchi xabari XML delimiter ichiga o'raladi —
     /// bu Claude'ga prompt injection harflarini xabardan ajratib olishga yordam beradi.
     /// </summary>
-    private static string BuildParsePrompt(string sanitizedMessage) => $"""
+    private static string BuildParsePrompt(string sanitizedMessage) => $$"""
         Parse the financial message inside <message></message> tags.
         Return ONLY a JSON object with these exact fields:
-        {{
+        {
           "is_financial": true/false,
           "type": "Expense" or "Income" or null,
           "amount": <computed_number> or null,
@@ -232,9 +232,9 @@ public sealed class ClaudeTransactionParser : ITransactionParser
           "description": "<brief English description>" or null,
           "date": "today" or "yesterday" or "YYYY-MM-DD" or null,
           "confidence_score": <0.0 to 1.0>
-        }}
+        }
 
-        <message>{sanitizedMessage}</message>
+        <message>{{sanitizedMessage}}</message>
         """;
 
     // ────────────────────────────────────────────────────────────
