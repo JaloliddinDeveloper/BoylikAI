@@ -74,10 +74,9 @@ public sealed class BotPollingWorker : BackgroundService
     private Task HandleErrorAsync(
         ITelegramBotClient bot,
         Exception exception,
-        HandleErrorSource source,
         CancellationToken ct)
     {
-        _logger.LogError(exception, "Telegram polling error from {Source}", source);
+        _logger.LogError(exception, "Telegram polling error: {Message}", exception.Message);
         return Task.CompletedTask;
     }
 }
