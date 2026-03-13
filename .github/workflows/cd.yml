@@ -112,12 +112,9 @@ jobs:
             # Pull new images before stopping old ones (minimize downtime)
             docker compose -f docker-compose.prod.yml pull api bot
 
-            # Rolling restart — Nginx keeps serving during restart
+            # Start all services — Docker Compose handles dependency order
             # Migrations run automatically on API startup (ApplyMigrations=true)
-            docker compose -f docker-compose.prod.yml up -d \
-              --remove-orphans \
-              --no-deps \
-              api bot
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
             # Wait for health check to pass
             echo "Waiting for API health check..."
