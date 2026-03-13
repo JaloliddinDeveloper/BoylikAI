@@ -1,5 +1,6 @@
 using BoylikAI.Application.Analytics.Queries.GetMonthlyReport;
 using BoylikAI.Application.Common.Interfaces;
+using BoylikAI.Application.DTOs;
 using BoylikAI.Application.Transactions.Commands.ParseAndCreate;
 using BoylikAI.Application.Users.Commands.RegisterUser;
 using BoylikAI.TelegramBot.Keyboards;
@@ -293,42 +294,133 @@ public sealed class MessageHandler
 
         var pred = await _mediator.Send(new GetSpendingPredictionQuery(userId, year, month), ct);
 
-        var confidenceLabel = pred.Confidence switch
+        var dayPct = (int)Math.Round((double)pred.DaysElapsed / pred.DaysInMonth * 100);
+
+        var trajectoryEmoji = pred.Trajectory switch
         {
-            Application.DTOs.PredictionConfidence.High => lang == "uz" ? "Yuqori" : "High",
-            Application.DTOs.PredictionConfidence.Medium => lang == "uz" ? "O'rtacha" : "Medium",
-            _ => lang == "uz" ? "Past" : "Low"
+            SpendingTrend.Improving => "↘️",
+            SpendingTrend.Worsening => "↗️",
+            _                       => "→"
+        };
+        var trajectoryLabel = lang == "uz"
+            ? pred.Trajectory switch
+            {
+                SpendingTrend.Improving => "Kamayib bormoqda ✅",
+                SpendingTrend.Worsening => "Ortib bormoqda ⚠️",
+                _                       => "Barqaror"
+            }
+            : pred.Trajectory switch
+            {
+                SpendingTrend.Improving => "Decreasing ✅",
+                SpendingTrend.Worsening => "Increasing ⚠️",
+                _                       => "Stable"
+            };
+
+        var paceEmoji    = pred.SpendingPacePercent > 120 ? "🔴" : pred.SpendingPacePercent > 100 ? "🟡" : "🟢";
+        var savingsEmoji = pred.ProjectedSavings >= 0 ? "💚" : "🔴";
+        var confEmoji    = pred.Confidence switch
+        {
+            PredictionConfidence.High   => "🎯",
+            PredictionConfidence.Medium => "📊",
+            _                           => "📉"
         };
 
-        var message = lang == "uz"
-            ? $"""
-               📈 *Oylik xarajat prognozi*
+        // Top 4 kategoriya
+        var catLines = string.Join("\n", pred.CategoryPredictions.Take(4).Select(c =>
+        {
+            var tEmoji = c.Trend switch
+            {
+                SpendingTrend.Worsening => "↗️",
+                SpendingTrend.Improving => "↘️",
+                _                       => "  →"
+            };
+            return $"  {GetCategoryEmoji(c.Category)} {c.CategoryDisplayName}: `{c.CurrentSpending:N0}` → `{c.PredictedTotal:N0}` {tEmoji}";
+        }));
 
-               📅 O'tgan kunlar: {pred.DaysElapsed} / {pred.DaysInMonth}
-               💸 Hozirgi xarajat: `{pred.CurrentSpending:N0} so'm`
-               📊 Kunlik o'rtacha: `{pred.AverageDailySpending:N0} so'm`
+        var vsLastMonthLine = pred.VsLastMonthPercent.HasValue
+            ? (lang == "uz"
+                ? $"\n📋 *O'tgan oyga nisbatan:* {(pred.VsLastMonthPercent >= 0 ? "+" : "")}{pred.VsLastMonthPercent:F1}%"
+                : $"\n📋 *vs Last Month:* {(pred.VsLastMonthPercent >= 0 ? "+" : "")}{pred.VsLastMonthPercent:F1}%")
+            : "";
 
-               🔮 *Prognoz:*
-               Oy oxiriga xarajat: `{pred.PredictedMonthEndSpending:N0} so'm`
-               Kutilayotgan jamg'arma: `{pred.ProjectedSavings:N0} so'm`
+        var paceLabel = lang == "uz"
+            ? pred.SpendingPacePercent switch
+            {
+                > 120 => "(ortiq sarflanmoqda)",
+                > 100 => "(biroz ko'p)",
+                > 80  => "(yaxshi)",
+                _     => "(tejamkor) ✅"
+            }
+            : pred.SpendingPacePercent switch
+            {
+                > 120 => "(overspending)",
+                > 100 => "(slightly over)",
+                > 80  => "(on track)",
+                _     => "(frugal) ✅"
+            };
 
-               Ishonchlilik: {confidenceLabel}
-               {(string.IsNullOrEmpty(pred.Warning) ? "" : $"\n⚠️ {pred.Warning}")}
-               """
-            : $"""
-               📈 *Monthly Spending Forecast*
+        var dailyBudgetLine = pred.DailyBudgetRemaining > 0
+            ? (lang == "uz"
+                ? $"\n💳 *Qolgan kunlarga limit:* `{pred.DailyBudgetRemaining:N0}` so'm/kun"
+                : $"\n💳 *Daily budget left:* `{pred.DailyBudgetRemaining:N0}` UZS/day")
+            : "";
 
-               📅 Days elapsed: {pred.DaysElapsed} / {pred.DaysInMonth}
-               💸 Current spending: `{pred.CurrentSpending:N0} UZS`
-               📊 Daily average: `{pred.AverageDailySpending:N0} UZS`
+        string message;
+        if (lang == "uz")
+        {
+            message = $"""
+                📈 *Oylik Xarajat Prognozi*
+                ━━━━━━━━━━━━━━━━━━━━
+                📅 *Davr:* {pred.DaysElapsed}/{pred.DaysInMonth} kun ({dayPct}% o'tdi)
+                💸 *Hozirgi xarajat:* `{pred.CurrentSpending:N0}` so'm
+                💡 *Kunlik o'rtacha (EWMA):* `{pred.AverageDailySpending:N0}` so'm
+                💰 *Daromad:* `{pred.MonthlyIncome:N0}` so'm
 
-               🔮 *Forecast:*
-               Month-end spending: `{pred.PredictedMonthEndSpending:N0} UZS`
-               Projected savings: `{pred.ProjectedSavings:N0} UZS`
+                🔮 *Prognoz (3 stsenariy):*
+                ├ 🎯 Asosiy:      `{pred.PredictedMonthEndSpending:N0}` so'm
+                ├ 📉 Optimistik:  `{pred.PredictedLow:N0}` so'm
+                └ 📈 Pessimistik: `{pred.PredictedHigh:N0}` so'm
 
-               Confidence: {confidenceLabel}
-               {(string.IsNullOrEmpty(pred.Warning) ? "" : $"\n⚠️ {pred.Warning}")}
-               """;
+                {savingsEmoji} *Kutilayotgan tejamkorlik:* `{pred.ProjectedSavings:N0}` so'm ({pred.ProjectedSavingsRate:F1}%){dailyBudgetLine}
+
+                {paceEmoji} *Sarflash tempi:* {pred.SpendingPacePercent:F0}% {paceLabel}
+                {trajectoryEmoji} *Trend:* {trajectoryLabel}{vsLastMonthLine}
+
+                {confEmoji} *Ishonch:* {pred.ConfidencePercent}% | {pred.DaysElapsed} kunlik ma'lumot asosida
+                """;
+        }
+        else
+        {
+            message = $"""
+                📈 *Monthly Spending Forecast*
+                ━━━━━━━━━━━━━━━━━━━━
+                📅 *Progress:* {pred.DaysElapsed}/{pred.DaysInMonth} days ({dayPct}% elapsed)
+                💸 *Current spending:* `{pred.CurrentSpending:N0}` UZS
+                💡 *Daily average (EWMA):* `{pred.AverageDailySpending:N0}` UZS
+                💰 *Income:* `{pred.MonthlyIncome:N0}` UZS
+
+                🔮 *Forecast (3 scenarios):*
+                ├ 🎯 Base:        `{pred.PredictedMonthEndSpending:N0}` UZS
+                ├ 📉 Optimistic:  `{pred.PredictedLow:N0}` UZS
+                └ 📈 Pessimistic: `{pred.PredictedHigh:N0}` UZS
+
+                {savingsEmoji} *Projected savings:* `{pred.ProjectedSavings:N0}` UZS ({pred.ProjectedSavingsRate:F1}%){dailyBudgetLine}
+
+                {paceEmoji} *Spending pace:* {pred.SpendingPacePercent:F0}% {paceLabel}
+                {trajectoryEmoji} *Trend:* {trajectoryLabel}{vsLastMonthLine}
+
+                {confEmoji} *Confidence:* {pred.ConfidencePercent}% | based on {pred.DaysElapsed} days
+                """;
+        }
+
+        if (!string.IsNullOrEmpty(catLines))
+        {
+            var catHeader = lang == "uz" ? "\n\n📂 *Kategoriyalar bo'yicha prognoz:*" : "\n\n📂 *Category forecast:*";
+            message += catHeader + "\n" + catLines;
+        }
+
+        if (!string.IsNullOrEmpty(pred.Warning))
+            message += $"\n\n⚠️ _{pred.Warning}_";
 
         await _bot.SendMessage(chatId, message, parseMode: ParseMode.Markdown, cancellationToken: ct);
     }
