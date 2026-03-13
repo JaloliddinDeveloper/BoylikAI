@@ -152,6 +152,7 @@ public sealed class MessageHandler
 
             case "/reset":
             case "/tozala":
+            case "🔄 hisobni tiklash":
                 await SendResetConfirmationAsync(chatId, lang, ct);
                 break;
 
@@ -380,7 +381,8 @@ public sealed class MessageHandler
 
     private static bool IsMenuCommand(string text) =>
         text is "📊 Hisobot" or "📊 hisobot" or "💡 Maslahat" or "💡 maslahat"
-            or "📈 Prognoz" or "📈 prognoz" or "❓ Yordam" or "❓ yordam";
+            or "📈 Prognoz" or "📈 prognoz" or "❓ Yordam" or "❓ yordam"
+            or "🔄 Hisobni tiklash" or "🔄 hisobni tiklash";
 
     private static string GetCategoryEmoji(Domain.Enums.TransactionCategory category) => category switch
     {

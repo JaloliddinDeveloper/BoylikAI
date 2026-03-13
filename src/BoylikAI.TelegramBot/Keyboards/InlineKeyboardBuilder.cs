@@ -44,7 +44,8 @@ public static class InlineKeyboardBuilder
         new(new[]
         {
             new KeyboardButton[] { "📊 Hisobot", "💡 Maslahat" },
-            new KeyboardButton[] { "📈 Prognoz", "❓ Yordam" }
+            new KeyboardButton[] { "📈 Prognoz", "❓ Yordam" },
+            new KeyboardButton[] { "🔄 Hisobni tiklash" }
         })
         {
             ResizeKeyboard = true,
