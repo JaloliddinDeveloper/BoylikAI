@@ -105,7 +105,7 @@ jobs:
 
             # Set image tag for this deployment
             export IMAGE_TAG="${{ needs.build-push.outputs.image_tag }}"
-            export GITHUB_REPO="${{ github.repository_owner }}"
+            export GITHUB_REPO="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
 
             echo "Deploying image tag: ${IMAGE_TAG}"
 
