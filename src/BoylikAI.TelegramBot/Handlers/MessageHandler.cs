@@ -156,6 +156,12 @@ public sealed class MessageHandler
                 await SendResetConfirmationAsync(chatId, lang, ct);
                 break;
 
+            case "/export":
+            case "/eksport":
+            case "📤 excel eksport":
+                await SendExportPeriodSelectionAsync(chatId, lang, ct);
+                break;
+
             default:
                 var msg = lang == "uz"
                     ? "Bu buyruq mavjud emas. /yordam ni bosing."
@@ -327,6 +333,19 @@ public sealed class MessageHandler
         await _bot.SendMessage(chatId, message, parseMode: ParseMode.Markdown, cancellationToken: ct);
     }
 
+    private async Task SendExportPeriodSelectionAsync(long chatId, string lang, CancellationToken ct)
+    {
+        var message = lang == "uz"
+            ? "📊 *Excel eksport*\n\nQaysi davr uchun hisobot olmoqchisiz?"
+            : "📊 *Excel Export*\n\nSelect the period for your report:";
+
+        await _bot.SendMessage(
+            chatId, message,
+            parseMode: ParseMode.Markdown,
+            replyMarkup: InlineKeyboardBuilder.ExportPeriodSelection(),
+            cancellationToken: ct);
+    }
+
     private async Task SendResetConfirmationAsync(long chatId, string lang, CancellationToken ct)
     {
         var message = lang == "uz"
@@ -382,7 +401,8 @@ public sealed class MessageHandler
     private static bool IsMenuCommand(string text) =>
         text is "📊 Hisobot" or "📊 hisobot" or "💡 Maslahat" or "💡 maslahat"
             or "📈 Prognoz" or "📈 prognoz" or "❓ Yordam" or "❓ yordam"
-            or "🔄 Hisobni tiklash" or "🔄 hisobni tiklash";
+            or "🔄 Hisobni tiklash" or "🔄 hisobni tiklash"
+            or "📤 Excel eksport" or "📤 excel eksport";
 
     private static string GetCategoryEmoji(Domain.Enums.TransactionCategory category) => category switch
     {

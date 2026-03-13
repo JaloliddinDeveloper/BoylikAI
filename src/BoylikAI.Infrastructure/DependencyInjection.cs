@@ -4,6 +4,7 @@ using BoylikAI.Domain.Interfaces;
 using BoylikAI.Infrastructure.AI;
 using BoylikAI.Infrastructure.Analytics;
 using BoylikAI.Infrastructure.Caching;
+using BoylikAI.Infrastructure.Export;
 using BoylikAI.Infrastructure.Messaging;
 using BoylikAI.Infrastructure.Persistence;
 using BoylikAI.Infrastructure.Persistence.Repositories;
@@ -74,6 +75,9 @@ public static class DependencyInjection
         services.AddScoped<ITransactionParser, ClaudeTransactionParser>();
         services.AddScoped<IAdviceGenerator, ClaudeAdviceGenerator>();
         services.AddScoped<IChatService, ClaudeChatService>();
+
+        // ── Export ───────────────────────────────────────────────────────────
+        services.AddScoped<IExcelExportService, ExcelExportService>();
 
         // ── Analytics ────────────────────────────────────────────────────────
         services.AddScoped<IAnalyticsEngine, AnalyticsEngine>();

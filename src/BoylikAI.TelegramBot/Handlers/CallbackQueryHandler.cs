@@ -20,6 +20,7 @@ public sealed class CallbackQueryHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly IUserRepository _userRepo;
     private readonly IMediator _mediator;
+    private readonly IExcelExportService _excelExport;
     private readonly ILogger<CallbackQueryHandler> _logger;
 
     public CallbackQueryHandler(
@@ -28,6 +29,7 @@ public sealed class CallbackQueryHandler
         IUnitOfWork unitOfWork,
         IUserRepository userRepo,
         IMediator mediator,
+        IExcelExportService excelExport,
         ILogger<CallbackQueryHandler> logger)
     {
         _bot = bot;
@@ -35,6 +37,7 @@ public sealed class CallbackQueryHandler
         _unitOfWork = unitOfWork;
         _userRepo = userRepo;
         _mediator = mediator;
+        _excelExport = excelExport;
         _logger = logger;
     }
 
@@ -63,6 +66,10 @@ public sealed class CallbackQueryHandler
                 await HandleDeleteAsync(query.Id, chatId, param, lang, ct);
                 break;
 
+            case "export":
+                await HandleExportAsync(query.Id, chatId, user?.Id ?? Guid.Empty, param, lang, ct);
+                break;
+
             case "reset_confirm":
                 await HandleResetConfirmAsync(query.Id, chatId, user?.Id ?? Guid.Empty, lang, ct);
                 break;
@@ -80,6 +87,50 @@ public sealed class CallbackQueryHandler
                 _logger.LogWarning("Unknown callback action: {Action}", action);
                 await AnswerCallbackAsync(query.Id, string.Empty, ct);
                 break;
+        }
+    }
+
+    private async Task HandleExportAsync(
+        string callbackQueryId, long chatId, Guid userId, string periodStr, string lang, CancellationToken ct)
+    {
+        if (userId == Guid.Empty)
+        {
+            await AnswerCallbackAsync(callbackQueryId, "Xatolik", ct);
+            return;
+        }
+
+        var period = periodStr switch
+        {
+            "weekly"  => ExportPeriod.Weekly,
+            "monthly" => ExportPeriod.Monthly,
+            _         => ExportPeriod.Daily
+        };
+
+        try
+        {
+            await AnswerCallbackAsync(callbackQueryId, lang == "uz" ? "Tayyorlanmoqda..." : "Preparing...", ct);
+            await _bot.SendChatAction(chatId, ChatAction.UploadDocument, cancellationToken: ct);
+
+            var (bytes, fileName) = await _excelExport.ExportAsync(userId, period, ct);
+
+            using var stream = new MemoryStream(bytes);
+            var caption = lang == "uz"
+                ? $"📊 Excel hisobot tayyor! ({period switch { ExportPeriod.Weekly => "Haftalik", ExportPeriod.Monthly => "Oylik", _ => "Bugungi" }})"
+                : $"📊 Excel report ready! ({period switch { ExportPeriod.Weekly => "Weekly", ExportPeriod.Monthly => "Monthly", _ => "Daily" }})";
+
+            await _bot.SendDocument(
+                chatId: chatId,
+                document: InputFile.FromStream(stream, fileName),
+                caption: caption,
+                cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Excel export failed for user {UserId}, period {Period}", userId, period);
+            var errMsg = lang == "uz"
+                ? "❌ Hisobot yaratishda xatolik yuz berdi."
+                : "❌ Failed to generate the report.";
+            await _bot.SendMessage(chatId, errMsg, cancellationToken: ct);
         }
     }
 

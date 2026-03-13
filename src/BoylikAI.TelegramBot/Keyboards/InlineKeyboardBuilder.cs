@@ -40,12 +40,23 @@ public static class InlineKeyboardBuilder
             }
         });
 
+    public static InlineKeyboardMarkup ExportPeriodSelection() =>
+        new(new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("📅 Bugungi", "export:daily"),
+                InlineKeyboardButton.WithCallbackData("📆 Haftalik", "export:weekly"),
+                InlineKeyboardButton.WithCallbackData("🗓 Oylik", "export:monthly")
+            }
+        });
+
     public static ReplyKeyboardMarkup QuickActions() =>
         new(new[]
         {
             new KeyboardButton[] { "📊 Hisobot", "💡 Maslahat" },
             new KeyboardButton[] { "📈 Prognoz", "❓ Yordam" },
-            new KeyboardButton[] { "🔄 Hisobni tiklash" }
+            new KeyboardButton[] { "📤 Excel eksport", "🔄 Hisobni tiklash" }
         })
         {
             ResizeKeyboard = true,
