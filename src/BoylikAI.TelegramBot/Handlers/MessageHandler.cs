@@ -1,4 +1,5 @@
 using BoylikAI.Application.Analytics.Queries.GetMonthlyReport;
+using BoylikAI.Application.Common.Interfaces;
 using BoylikAI.Application.Transactions.Commands.ParseAndCreate;
 using BoylikAI.Application.Users.Commands.RegisterUser;
 using BoylikAI.TelegramBot.Keyboards;
@@ -15,15 +16,18 @@ public sealed class MessageHandler
 {
     private readonly ITelegramBotClient _bot;
     private readonly IMediator _mediator;
+    private readonly IChatService _chatService;
     private readonly ILogger<MessageHandler> _logger;
 
     public MessageHandler(
         ITelegramBotClient bot,
         IMediator mediator,
+        IChatService chatService,
         ILogger<MessageHandler> logger)
     {
         _bot = bot;
         _mediator = mediator;
+        _chatService = chatService;
         _logger = logger;
     }
 
@@ -104,12 +108,9 @@ public sealed class MessageHandler
         }
         else
         {
-            var errorMsg = lang == "uz"
-                ? "🤔 Bu moliyaviy tranzaksiya emas yoki tushunib bo'lmadi.\n\nMasalan: *\"Avtobusga 2400 so'm berdim\"*"
-                : "🤔 I couldn't understand this as a financial transaction.\n\nExample: *\"Paid 35000 for lunch\"*";
-
-            await _bot.SendMessage(chatId, errorMsg,
-                parseMode: ParseMode.Markdown, cancellationToken: ct);
+            // Moliyaviy tranzaksiya emas — Claude bilan do'stona suhbat
+            var reply = await _chatService.ChatAsync(text, lang, ct);
+            await _bot.SendMessage(chatId, reply, cancellationToken: ct);
         }
     }
 

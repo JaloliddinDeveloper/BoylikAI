@@ -73,6 +73,7 @@ public static class DependencyInjection
         services.AddSingleton<RuleBasedCategoryClassifier>();
         services.AddScoped<ITransactionParser, ClaudeTransactionParser>();
         services.AddScoped<IAdviceGenerator, ClaudeAdviceGenerator>();
+        services.AddScoped<IChatService, ClaudeChatService>();
 
         // ── Analytics ────────────────────────────────────────────────────────
         services.AddScoped<IAnalyticsEngine, AnalyticsEngine>();
