@@ -26,6 +26,9 @@ public interface ITransactionRepository
 
     /// <summary>Soft delete — moliyaviy ma'lumotlar hech qachon yo'q qilinmaydi.</summary>
     Task SoftDeleteAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Foydalanuvchining barcha tranzaksiyalarini soft delete qiladi (hisobni noldan boshlash).</summary>
+    Task<int> SoftDeleteAllByUserIdAsync(Guid userId, CancellationToken ct = default);
 }
 
 /// <summary>DB-level aggregation natijasi. In-memory'dan tezroq.</summary>

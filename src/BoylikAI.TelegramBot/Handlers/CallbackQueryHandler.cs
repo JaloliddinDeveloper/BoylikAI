@@ -1,4 +1,5 @@
 using BoylikAI.Application.Common.Interfaces;
+using BoylikAI.Application.Transactions.Commands.ResetUserTransactions;
 using BoylikAI.Domain.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@ public sealed class CallbackQueryHandler
     private readonly ITransactionRepository _txRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IUserRepository _userRepo;
+    private readonly IMediator _mediator;
     private readonly ILogger<CallbackQueryHandler> _logger;
 
     public CallbackQueryHandler(
@@ -25,12 +27,14 @@ public sealed class CallbackQueryHandler
         ITransactionRepository txRepo,
         IUnitOfWork unitOfWork,
         IUserRepository userRepo,
+        IMediator mediator,
         ILogger<CallbackQueryHandler> logger)
     {
         _bot = bot;
         _txRepo = txRepo;
         _unitOfWork = unitOfWork;
         _userRepo = userRepo;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -59,9 +63,12 @@ public sealed class CallbackQueryHandler
                 await HandleDeleteAsync(query.Id, chatId, param, lang, ct);
                 break;
 
+            case "reset_confirm":
+                await HandleResetConfirmAsync(query.Id, chatId, user?.Id ?? Guid.Empty, lang, ct);
+                break;
+
             case "cancel":
                 await AnswerCallbackAsync(query.Id, lang == "uz" ? "Bekor qilindi" : "Cancelled", ct);
-                // Remove the inline keyboard from the original message
                 await _bot.EditMessageReplyMarkup(
                     chatId: chatId,
                     messageId: query.Message.MessageId,
@@ -104,6 +111,33 @@ public sealed class CallbackQueryHandler
                 ? "❌ O'chirishda xatolik yuz berdi."
                 : "❌ Failed to delete transaction.";
             await AnswerCallbackAsync(callbackQueryId, errorMsg, ct);
+        }
+    }
+
+    private async Task HandleResetConfirmAsync(
+        string callbackQueryId, long chatId, Guid userId, string lang, CancellationToken ct)
+    {
+        if (userId == Guid.Empty)
+        {
+            await AnswerCallbackAsync(callbackQueryId, "Xatolik", ct);
+            return;
+        }
+
+        try
+        {
+            var result = await _mediator.Send(new ResetUserTransactionsCommand(userId), ct);
+
+            var msg = lang == "uz"
+                ? $"✅ Barcha ma'lumotlar o'chirildi. ({result.DeletedCount} ta tranzaksiya)\n\nHisobingiz noldan boshlandi! 🚀"
+                : $"✅ All data cleared. ({result.DeletedCount} transactions)\n\nFresh start! 🚀";
+
+            await AnswerCallbackAsync(callbackQueryId, lang == "uz" ? "O'chirildi!" : "Cleared!", ct);
+            await _bot.SendMessage(chatId, msg, cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to reset transactions for user {UserId}", userId);
+            await AnswerCallbackAsync(callbackQueryId, "❌ Xatolik", ct);
         }
     }
 

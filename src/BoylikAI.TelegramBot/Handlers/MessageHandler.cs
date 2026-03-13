@@ -149,6 +149,11 @@ public sealed class MessageHandler
                 await SendHelpAsync(chatId, lang, ct);
                 break;
 
+            case "/reset":
+            case "/tozala":
+                await SendResetConfirmationAsync(chatId, lang, ct);
+                break;
+
             default:
                 var msg = lang == "uz"
                     ? "Bu buyruq mavjud emas. /yordam ni bosing."
@@ -318,6 +323,19 @@ public sealed class MessageHandler
                """;
 
         await _bot.SendMessage(chatId, message, parseMode: ParseMode.Markdown, cancellationToken: ct);
+    }
+
+    private async Task SendResetConfirmationAsync(long chatId, string lang, CancellationToken ct)
+    {
+        var message = lang == "uz"
+            ? "⚠️ *Diqqat!*\n\nBarcha tranzaksiyalaringiz o'chirilib, hisob noldan boshlanadi.\n\nDavom etishni xohlaysizmi?"
+            : "⚠️ *Warning!*\n\nAll your transactions will be deleted and your account will start fresh.\n\nAre you sure?";
+
+        await _bot.SendMessage(
+            chatId, message,
+            parseMode: ParseMode.Markdown,
+            replyMarkup: InlineKeyboardBuilder.ResetConfirmation(),
+            cancellationToken: ct);
     }
 
     private async Task SendHelpAsync(long chatId, string lang, CancellationToken ct)

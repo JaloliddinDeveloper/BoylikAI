@@ -97,17 +97,30 @@ public sealed class TransactionRepository : ITransactionRepository
 
     /// <summary>
     /// Soft delete — moliyaviy ma'lumotlar hech qachon fizikaviy o'chirilmaydi.
-    /// Domain event raises BudgetExceededEvent chain if needed.
     /// </summary>
     public async Task SoftDeleteAsync(Guid id, CancellationToken ct = default)
     {
-        // IgnoreQueryFilters() — already-deleted transactions can be fetched for idempotency
         var tx = await _ctx.Transactions
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(t => t.Id == id, ct);
 
         if (tx is null || tx.IsDeleted) return;
         tx.SoftDelete();
-        // EF change tracking handles the UPDATE — no explicit .Update() call needed
+    }
+
+    /// <summary>
+    /// Foydalanuvchining barcha tranzaksiyalarini soft delete qiladi.
+    /// Hisobni noldan boshlash uchun ishlatiladi.
+    /// </summary>
+    public async Task<int> SoftDeleteAllByUserIdAsync(Guid userId, CancellationToken ct = default)
+    {
+        var transactions = await _ctx.Transactions
+            .Where(t => t.UserId == userId)
+            .ToListAsync(ct);
+
+        foreach (var tx in transactions)
+            tx.SoftDelete();
+
+        return transactions.Count;
     }
 }

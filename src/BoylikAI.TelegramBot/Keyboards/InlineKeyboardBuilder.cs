@@ -30,6 +30,16 @@ public static class InlineKeyboardBuilder
             }
         });
 
+    public static InlineKeyboardMarkup ResetConfirmation() =>
+        new(new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("✅ Ha, o'chir", "reset_confirm:yes"),
+                InlineKeyboardButton.WithCallbackData("❌ Bekor", "cancel:reset")
+            }
+        });
+
     public static ReplyKeyboardMarkup QuickActions() =>
         new(new[]
         {
