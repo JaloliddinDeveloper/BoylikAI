@@ -112,10 +112,8 @@ jobs:
             # Pull new images before stopping old ones (minimize downtime)
             docker compose -f docker-compose.prod.yml pull api bot
 
-            # Run migrations before starting new API
-            docker compose -f docker-compose.prod.yml run --rm migrate
-
             # Rolling restart — Nginx keeps serving during restart
+            # Migrations run automatically on API startup (ApplyMigrations=true)
             docker compose -f docker-compose.prod.yml up -d \
               --remove-orphans \
               --no-deps \
@@ -124,7 +122,7 @@ jobs:
             # Wait for health check to pass
             echo "Waiting for API health check..."
             timeout 120 bash -c \
-              'until docker exec boylikai-api wget -qO- http://localhost:8080/health > /dev/null; do sleep 3; done'
+              'until docker exec boylikaI-api wget -qO- http://localhost:8080/health > /dev/null; do sleep 3; done'
 
             # Clean up old images
             docker image prune -f

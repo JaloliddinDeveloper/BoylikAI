@@ -92,9 +92,8 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
         builder.HasIndex(t => new { t.UserId, t.TransactionDate, t.IsDeleted })
             .HasDatabaseName("ix_transactions_user_date_deleted");
 
-        // Covering index for category aggregation queries
+        // Index for category aggregation queries
         builder.HasIndex(t => new { t.UserId, t.TransactionDate, t.Type, t.Category })
-            .IncludeProperties(t => new { t.Amount })
             .HasDatabaseName("ix_transactions_analytics_covering");
 
         builder.HasOne(t => t.User)
