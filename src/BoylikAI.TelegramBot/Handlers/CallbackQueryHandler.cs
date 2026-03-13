@@ -62,8 +62,17 @@ public sealed class CallbackQueryHandler
 
         switch (action)
         {
+            case "confirm":
+                await HandleConfirmAsync(query.Id, chatId, query.Message.MessageId, lang, ct);
+                break;
+
+            case "edit":
+                await HandleEditAsync(query.Id, chatId, query.Message.MessageId, param, lang, ct);
+                break;
+
+            case "delete":
             case "delete_tx":
-                await HandleDeleteAsync(query.Id, chatId, param, lang, ct);
+                await HandleDeleteAsync(query.Id, chatId, query.Message.MessageId, param, lang, ct);
                 break;
 
             case "export":
@@ -134,8 +143,100 @@ public sealed class CallbackQueryHandler
         }
     }
 
+    // ── ✅ To'g'ri ────────────────────────────────────────────────────────
+    private async Task HandleConfirmAsync(
+        string callbackQueryId, long chatId, int messageId, string lang, CancellationToken ct)
+    {
+        var toast = lang == "uz" ? "✅ Saqlandi!" : "✅ Saved!";
+        await AnswerCallbackAsync(callbackQueryId, toast, ct);
+
+        // Inline klaviaturani olib tashlaymiz — tranzaksiya tasdiqlandi
+        try
+        {
+            await _bot.EditMessageReplyMarkup(
+                chatId: chatId,
+                messageId: messageId,
+                replyMarkup: null,
+                cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "EditMessageReplyMarkup failed on confirm");
+        }
+    }
+
+    // ── ✏️ Tahrirlash ─────────────────────────────────────────────────────
+    private async Task HandleEditAsync(
+        string callbackQueryId, long chatId, int messageId, string txIdStr, string lang, CancellationToken ct)
+    {
+        if (!Guid.TryParse(txIdStr, out var txId))
+        {
+            await AnswerCallbackAsync(callbackQueryId, "Invalid ID", ct);
+            return;
+        }
+
+        try
+        {
+            var tx = await _txRepo.GetByIdAsync(txId, ct);
+            if (tx is null)
+            {
+                await AnswerCallbackAsync(callbackQueryId, lang == "uz" ? "Topilmadi" : "Not found", ct);
+                return;
+            }
+
+            // Eski tranzaksiyani o'chiramiz
+            await _txRepo.SoftDeleteAsync(txId, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            // Inline klaviaturani olib tashlaymiz
+            try
+            {
+                await _bot.EditMessageReplyMarkup(
+                    chatId: chatId,
+                    messageId: messageId,
+                    replyMarkup: null,
+                    cancellationToken: ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "EditMessageReplyMarkup failed on edit");
+            }
+
+            var typeLabel = tx.Type == Domain.Enums.TransactionType.Income
+                ? (lang == "uz" ? "Daromad" : "Income")
+                : (lang == "uz" ? "Xarajat" : "Expense");
+
+            var hint = lang == "uz"
+                ? $"""
+                   ✏️ *Tahrirlash uchun qayta yuboring*
+
+                   O'chirilgan yozuv:
+                   └ {typeLabel}: `{tx.Amount.Amount:N0} {tx.Amount.Currency}` — {tx.Description}
+
+                   To'g'ri ma'lumotni yuboring, men saqlab qo'yaman 👇
+                   """
+                : $"""
+                   ✏️ *Re-enter to edit*
+
+                   Deleted entry:
+                   └ {typeLabel}: `{tx.Amount.Amount:N0} {tx.Amount.Currency}` — {tx.Description}
+
+                   Send the corrected version and I'll save it 👇
+                   """;
+
+            await AnswerCallbackAsync(callbackQueryId, lang == "uz" ? "Tahrirlash uchun qayta yozing" : "Re-enter to edit", ct);
+            await _bot.SendMessage(chatId, hint, parseMode: ParseMode.Markdown, cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to start edit for transaction {TxId}", txId);
+            await AnswerCallbackAsync(callbackQueryId, "❌ Xatolik", ct);
+        }
+    }
+
+    // ── ❌ O'chirish ──────────────────────────────────────────────────────
     private async Task HandleDeleteAsync(
-        string callbackQueryId, long chatId, string txIdStr, string lang, CancellationToken ct)
+        string callbackQueryId, long chatId, int messageId, string txIdStr, string lang, CancellationToken ct)
     {
         if (!Guid.TryParse(txIdStr, out var txId))
         {
@@ -148,9 +249,23 @@ public sealed class CallbackQueryHandler
             await _txRepo.SoftDeleteAsync(txId, ct);
             await _unitOfWork.SaveChangesAsync(ct);
 
+            // Inline klaviaturani olib tashlaymiz
+            try
+            {
+                await _bot.EditMessageReplyMarkup(
+                    chatId: chatId,
+                    messageId: messageId,
+                    replyMarkup: null,
+                    cancellationToken: ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "EditMessageReplyMarkup failed on delete");
+            }
+
             var successMsg = lang == "uz"
-                ? "✅ Tranzaksiya o'chirildi."
-                : "✅ Transaction deleted.";
+                ? "🗑 Tranzaksiya o'chirildi."
+                : "🗑 Transaction deleted.";
 
             await AnswerCallbackAsync(callbackQueryId, successMsg, ct);
             await _bot.SendMessage(chatId, successMsg, cancellationToken: ct);
