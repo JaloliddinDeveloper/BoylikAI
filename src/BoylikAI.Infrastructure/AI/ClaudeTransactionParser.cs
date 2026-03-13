@@ -158,10 +158,11 @@ public sealed class ClaudeTransactionParser : ITransactionParser
         Thousands: "ming" = ×1000 (e.g., "35 ming" = 35000)
         Millions: "million", "mln", "mln." = ×1000000 (e.g., "5 mln" = 5000000)
 
-        EXPENSE words: "berdim", "xarjladim", "ishlatdim", "to'ladim",
-                       "sotib oldim", "xarid qildim", "to'ladim", "pul ketdi"
+        EXPENSE words: "berdim", "xarjladim", "ishlatdim", "to'ladim", "toladim",
+                       "sotib oldim", "xarid qildim", "pul ketdi", "chiqdi", "sarf"
         INCOME words: "oldim", "tushdi", "keldim", "topladim", "ishladim",
-                      "oylik", "maosh", "daromad", "pul kirdi"
+                      "oylik", "maosh", "daromad", "daromat", "pul kirdi", "avans",
+                      "kirdi", "tusdim", "qo'sh", "qosh", "sotdim", "ishladim"
 
         === FEW-SHOT EXAMPLES ===
         Input: "Avtobusga 2400 so'm berdim"
@@ -270,9 +271,11 @@ public sealed class ClaudeTransactionParser : ITransactionParser
         // Kuchli moliyaviy indikatorlar — bir o'zi yetarli
         var strongKeywords = new[]
         {
-            "so'm", "s'om", "pul", "berdim", "to'ladim", "xarjladim",
-            "ishlatdim", "oldim", "tushdi", "keldim", "topladim",
-            "daromat", "xarajat", "oylik", "maosh", "зарплата", "рублей"
+            "so'm", "s'om", "sum", "pul", "berdim", "to'ladim", "toladim",
+            "xarjladim", "ishlatdim", "oldim", "tushdi", "keldim", "topladim",
+            "daromat", "daromad", "xarajat", "oylik", "maosh", "avans",
+            "maosh", "ish haqi", "qo'sh", "qosh", "sotdim", "tusdim",
+            "зарплата", "рублей"
         };
 
         if (strongKeywords.Any(k => lower.Contains(k))) return true;
@@ -284,7 +287,7 @@ public sealed class ClaudeTransactionParser : ITransactionParser
         {
             "ming", "million", "mln", "avtobus", "taksi", "taxi", "kafe",
             "restoran", "do'kon", "market", "bozor", "freelance", "kredit",
-            "ijara", "dorixona", "dollar", "$", "€", "₽"
+            "ijara", "dorixona", "dollar", "$", "€", "₽", "kirdi", "chiqdi"
         };
 
         return weakKeywords.Any(k => lower.Contains(k));
