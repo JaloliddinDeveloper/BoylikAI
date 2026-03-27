@@ -1,5 +1,5 @@
 # ── Stage 1: Restore ─────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS restore
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS restore
 WORKDIR /src
 COPY ["src/BoylikAI.Domain/BoylikAI.Domain.csproj",                "src/BoylikAI.Domain/"]
 COPY ["src/BoylikAI.Application/BoylikAI.Application.csproj",      "src/BoylikAI.Application/"]
@@ -16,16 +16,20 @@ RUN dotnet publish "src/BoylikAI.TelegramBot/BoylikAI.TelegramBot.csproj" \
     /p:UseAppHost=false
 
 # ── Stage 3: Runtime ──────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
+# Debian slim — glibc bor, Whisper.net native library ishlaydi
+# (Alpine/musl libc bilan Whisper.net mos kelmaydi)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
-# ffmpeg — Telegram OGG/Opus → WAV (Whisper uchun)
-RUN apk add --no-cache ffmpeg
+# ffmpeg: OGG/Opus → WAV (Whisper uchun)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
-# Whisper model papkasi (volume orqali mount qilinadi)
+# Whisper model papkasi (Docker volume orqali mount qilinadi)
 RUN mkdir -p /app/models
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser \
     && chown -R appuser:appgroup /app/models
 
 COPY --from=publish /app/publish .
