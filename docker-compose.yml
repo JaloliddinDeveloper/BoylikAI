@@ -48,6 +48,13 @@ services:
       - Anthropic__ApiKey=${ANTHROPIC_API_KEY}
       - Telegram__BotToken=${TELEGRAM_BOT_TOKEN}
       - Seq__Url=http://seq:5341
+      # Whisper lokal ovoz modeli
+      - Whisper__ModelPath=/app/models/whisper-base.bin
+      - Whisper__ModelType=Base
+      - Whisper__Language=uz
+    volumes:
+      # Model faylini konteynerlar o'rtasida saqlash (qayta yuklamaslik uchun)
+      - whisper_models:/app/models
     depends_on:
       - api
     networks:
@@ -166,3 +173,4 @@ volumes:
   seq_data:
   prometheus_data:
   grafana_data:
+  whisper_models:

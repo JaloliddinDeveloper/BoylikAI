@@ -35,6 +35,7 @@ public sealed class BotPollingWorker : BackgroundService
 
         var receiverOptions = new ReceiverOptions
         {
+            // Voice is part of UpdateType.Message — no extra type needed
             AllowedUpdates = [UpdateType.Message, UpdateType.CallbackQuery]
         };
 

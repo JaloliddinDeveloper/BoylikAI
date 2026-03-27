@@ -18,26 +18,43 @@ public sealed class MessageHandler
     private readonly ITelegramBotClient _bot;
     private readonly IMediator _mediator;
     private readonly IChatService _chatService;
+    private readonly IAudioTranscriptionService _transcription;
     private readonly ILogger<MessageHandler> _logger;
 
     public MessageHandler(
         ITelegramBotClient bot,
         IMediator mediator,
         IChatService chatService,
+        IAudioTranscriptionService transcription,
         ILogger<MessageHandler> logger)
     {
         _bot = bot;
         _mediator = mediator;
         _chatService = chatService;
+        _transcription = transcription;
         _logger = logger;
     }
 
     public async Task HandleAsync(Message message, CancellationToken ct)
     {
-        if (message.From is null || message.Text is null) return;
+        if (message.From is null) return;
+        if (message.Text is null && message.Voice is null) return;
 
-        var text = message.Text.Trim();
         var chatId = message.Chat.Id;
+
+        // Handle voice message: transcribe → treat as text
+        string text;
+        if (message.Voice is not null)
+        {
+            await _bot.SendChatAction(chatId, ChatAction.Typing, cancellationToken: ct);
+            var transcribed = await TranscribeVoiceAsync(message.Voice, chatId, message.From.LanguageCode ?? "uz", ct);
+            if (transcribed is null) return;
+            text = transcribed;
+        }
+        else
+        {
+            text = message.Text!.Trim();
+        }
 
         // Register or get user
         var userResult = await _mediator.Send(new RegisterUserCommand(
@@ -58,6 +75,55 @@ public sealed class MessageHandler
 
         // Natural language transaction parsing
         await HandleNaturalLanguageAsync(text, chatId, user.Id, user.LanguageCode, ct);
+    }
+
+    private async Task<string?> TranscribeVoiceAsync(
+        Voice voice, long chatId, string lang, CancellationToken ct)
+    {
+        try
+        {
+            var fileInfo = await _bot.GetFile(voice.FileId, ct);
+            if (fileInfo.FilePath is null)
+            {
+                _logger.LogWarning("Voice file {FileId} has no path", voice.FileId);
+                await SendVoiceErrorAsync(chatId, lang, ct);
+                return null;
+            }
+
+            using var ms = new MemoryStream();
+            await _bot.DownloadFile(fileInfo.FilePath, ms, ct);
+            ms.Position = 0;
+
+            var fileName = $"{voice.FileId}.ogg";
+            var transcribed = await _transcription.TranscribeAsync(ms, fileName, ct);
+
+            if (string.IsNullOrWhiteSpace(transcribed))
+            {
+                await SendVoiceErrorAsync(chatId, lang, ct);
+                return null;
+            }
+
+            // Echo the transcribed text so user can see what was recognised
+            var prefix = lang == "uz" ? "🎤 Tushunildi: " : "🎤 Recognised: ";
+            await _bot.SendMessage(chatId, $"_{prefix}{transcribed}_",
+                parseMode: ParseMode.Markdown, cancellationToken: ct);
+
+            return transcribed;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to process voice message for chat {ChatId}", chatId);
+            await SendVoiceErrorAsync(chatId, lang, ct);
+            return null;
+        }
+    }
+
+    private async Task SendVoiceErrorAsync(long chatId, string lang, CancellationToken ct)
+    {
+        var msg = lang == "uz"
+            ? "😔 Ovozni tushuna olmadim. Iltimos, yozib yuboring."
+            : "😔 Could not understand the voice message. Please type it instead.";
+        await _bot.SendMessage(chatId, msg, cancellationToken: ct);
     }
 
     private async Task HandleNaturalLanguageAsync(
@@ -181,7 +247,7 @@ public sealed class MessageHandler
               Men sizning shaxsiy moliyaviy yordamchingizman.
 
               📌 *Qanday foydalanish:*
-              Shunchaki oddiy so'z bilan yozing:
+              Yozib yuboring yoki 🎤 *ovozli xabar* yuboring:
               • `"Avtobusga 2400 so'm berdim"`
               • `"Kafeda 35 ming ishlatdim"`
               • `"Oylik oldim 5 million"`
@@ -199,7 +265,7 @@ public sealed class MessageHandler
               I'm your personal financial assistant.
 
               📌 *How to use:*
-              Just write naturally:
+              Type or send a 🎤 *voice message*:
               • `"Paid 2400 for bus"`
               • `"Spent 35000 at cafe"`
               • `"Got salary 5 million"`
@@ -458,7 +524,7 @@ public sealed class MessageHandler
               ❓ *Yordam*
 
               *Tranzaksiyalar:*
-              Oddiy so'z bilan yozing:
+              Yozib yoki 🎤 ovozli xabar yuborib kiriting:
               • `"Avtobusga 2400 so'm berdim"` — Transport xarajati
               • `"Kafeda 35 ming ishlatdim"` — Ovqat xarajati
               • `"Oylik oldim 5 million"` — Daromad
@@ -474,7 +540,7 @@ public sealed class MessageHandler
               ❓ *Help*
 
               *Transactions:*
-              Write naturally:
+              Type or send a 🎤 voice message:
               • `"Paid 2400 for bus"` — Transport expense
               • `"Spent 35000 at cafe"` — Food expense
               • `"Got salary 5 million"` — Income

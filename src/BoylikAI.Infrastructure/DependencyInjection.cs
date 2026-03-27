@@ -76,6 +76,10 @@ public static class DependencyInjection
         services.AddScoped<IAdviceGenerator, ClaudeAdviceGenerator>();
         services.AddScoped<IChatService, ClaudeChatService>();
 
+        // ── Whisper (lokal ovoz transkriptsiyasi, API key shart emas) ────────
+        services.Configure<WhisperOptions>(configuration.GetSection(WhisperOptions.SectionName));
+        services.AddSingleton<IAudioTranscriptionService, WhisperTranscriptionService>();
+
         // ── Export ───────────────────────────────────────────────────────────
         services.AddScoped<IExcelExportService, ExcelExportService>();
 

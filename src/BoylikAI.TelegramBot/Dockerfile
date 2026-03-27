@@ -19,7 +19,14 @@ RUN dotnet publish "src/BoylikAI.TelegramBot/BoylikAI.TelegramBot.csproj" \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
 WORKDIR /app
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# ffmpeg — Telegram OGG/Opus → WAV (Whisper uchun)
+RUN apk add --no-cache ffmpeg
+
+# Whisper model papkasi (volume orqali mount qilinadi)
+RUN mkdir -p /app/models
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && chown -R appuser:appgroup /app/models
 
 COPY --from=publish /app/publish .
 
