@@ -40,9 +40,10 @@ public sealed class WhisperTranscriptionService : IAudioTranscriptionService, IA
                 return null;
             }
 
-            // Convert OGG/Opus to WAV in memory using ffmpeg
             var wavBytes = await ConvertToWavAsync(audioStream, ct);
             if (wavBytes is null) return null;
+
+            _logger.LogDebug("Running Whisper inference on {Bytes} bytes of WAV audio", wavBytes.Length);
 
             using var processor = _factory.CreateBuilder()
                 .WithLanguage(_options.Language)
@@ -56,9 +57,15 @@ public sealed class WhisperTranscriptionService : IAudioTranscriptionService, IA
             }
 
             var result = string.Join(" ", segments).Trim();
-            _logger.LogInformation("Whisper transcribed {Chars} chars from {File}", result.Length, fileName);
 
-            return string.IsNullOrWhiteSpace(result) ? null : result;
+            if (string.IsNullOrWhiteSpace(result))
+            {
+                _logger.LogWarning("Whisper returned empty transcription for {File}", fileName);
+                return null;
+            }
+
+            _logger.LogInformation("Whisper transcribed: \"{Text}\"", result);
+            return result;
         }
         catch (Exception ex)
         {
@@ -78,27 +85,50 @@ public sealed class WhisperTranscriptionService : IAudioTranscriptionService, IA
 
             var modelPath = _options.ModelPath;
 
+            _logger.LogInformation("Whisper model path: {Path}", Path.GetFullPath(modelPath));
+
             if (!File.Exists(modelPath))
             {
                 _logger.LogInformation(
-                    "Downloading Whisper model {Type} to {Path} (one-time ~{SizeMb} MB)...",
+                    "Downloading Whisper '{Type}' model to {Path} (~{Mb} MB, one-time)...",
                     _options.ModelType, modelPath, GetModelSizeMb(_options.ModelType));
 
-                var dir = Path.GetDirectoryName(modelPath)!;
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                var dir = Path.GetDirectoryName(Path.GetFullPath(modelPath))!;
+                Directory.CreateDirectory(dir);
 
-                await using var modelStream = await WhisperGgmlDownloader
-                    .GetGgmlModelAsync(_options.ModelType);
-                await using var file = File.OpenWrite(modelPath);
-                await modelStream.CopyToAsync(file, ct);
+                var tempPath = modelPath + ".tmp";
+                try
+                {
+                    await using var modelStream = await WhisperGgmlDownloader
+                        .GetGgmlModelAsync(_options.ModelType);
+                    await using var file = File.OpenWrite(tempPath);
+                    await modelStream.CopyToAsync(file, ct);
+                }
+                catch
+                {
+                    // Yarim yuklangan faylni o'chirib tashlash
+                    if (File.Exists(tempPath)) File.Delete(tempPath);
+                    throw;
+                }
 
-                _logger.LogInformation("Whisper model downloaded successfully");
+                File.Move(tempPath, modelPath, overwrite: true);
+                _logger.LogInformation("Whisper model downloaded: {Path}", modelPath);
+            }
+            else
+            {
+                var size = new FileInfo(modelPath).Length / 1024 / 1024;
+                _logger.LogInformation("Whisper model found: {Path} ({Mb} MB)", modelPath, size);
             }
 
             _factory = WhisperFactory.FromPath(modelPath);
             _initialized = true;
 
-            _logger.LogInformation("Whisper factory initialized with model {Path}", modelPath);
+            _logger.LogInformation("Whisper factory initialized — language: {Lang}", _options.Language);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Whisper initialization failed — voice messages will not work");
+            // _factory stays null; TranscribeAsync will return null gracefully
         }
         finally
         {
@@ -107,55 +137,69 @@ public sealed class WhisperTranscriptionService : IAudioTranscriptionService, IA
     }
 
     /// <summary>
-    /// Converts OGG/Opus audio (from Telegram) to WAV using ffmpeg.
-    /// ffmpeg must be installed on the server: apt-get install ffmpeg
+    /// Converts OGG/Opus (Telegram voice) to WAV 16kHz mono using ffmpeg.
+    /// ffmpeg must be in PATH: on Docker it's installed in the Dockerfile.
+    /// On Windows dev: install from https://ffmpeg.org/download.html
     /// </summary>
     private async Task<byte[]?> ConvertToWavAsync(Stream inputStream, CancellationToken ct)
     {
+        var tempInput  = Path.Combine(Path.GetTempPath(), $"voice_{Guid.NewGuid():N}.ogg");
+        var tempOutput = Path.Combine(Path.GetTempPath(), $"voice_{Guid.NewGuid():N}.wav");
+
         try
         {
-            var tempInput  = Path.GetTempFileName() + ".ogg";
-            var tempOutput = Path.GetTempFileName() + ".wav";
+            await using (var fs = File.OpenWrite(tempInput))
+                await inputStream.CopyToAsync(fs, ct);
 
-            try
+            _logger.LogDebug("Converting OGG→WAV: {In} → {Out}", tempInput, tempOutput);
+
+            var psi = new System.Diagnostics.ProcessStartInfo
             {
-                await using (var fs = File.OpenWrite(tempInput))
-                    await inputStream.CopyToAsync(fs, ct);
+                FileName  = "ffmpeg",
+                Arguments = $"-y -i \"{tempInput}\" -ar 16000 -ac 1 -f wav \"{tempOutput}\"",
+                RedirectStandardError  = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow  = true
+            };
 
-                var psi = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName  = "ffmpeg",
-                    Arguments = $"-y -i \"{tempInput}\" -ar 16000 -ac 1 -f wav \"{tempOutput}\"",
-                    RedirectStandardError  = true,
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow  = true
-                };
-
-                using var proc = System.Diagnostics.Process.Start(psi)
-                    ?? throw new InvalidOperationException("ffmpeg process could not be started");
-
-                await proc.WaitForExitAsync(ct);
-
-                if (proc.ExitCode != 0)
-                {
-                    var err = await proc.StandardError.ReadToEndAsync(ct);
-                    _logger.LogWarning("ffmpeg exited {Code}: {Error}", proc.ExitCode, err);
-                    return null;
-                }
-
-                return await File.ReadAllBytesAsync(tempOutput, ct);
-            }
-            finally
+            using var proc = System.Diagnostics.Process.Start(psi);
+            if (proc is null)
             {
-                if (File.Exists(tempInput))  File.Delete(tempInput);
-                if (File.Exists(tempOutput)) File.Delete(tempOutput);
+                _logger.LogError("ffmpeg not found — install it: apt-get install ffmpeg (Linux) or https://ffmpeg.org (Windows)");
+                return null;
             }
+
+            // Deadlock oldini olish: stderr ni parallel o'qish
+            var stderrTask = proc.StandardError.ReadToEndAsync(ct);
+            await proc.WaitForExitAsync(ct);
+            var stderr = await stderrTask;
+
+            if (proc.ExitCode != 0)
+            {
+                _logger.LogWarning("ffmpeg exit {Code}: {Error}", proc.ExitCode, stderr);
+                return null;
+            }
+
+            if (!File.Exists(tempOutput) || new FileInfo(tempOutput).Length == 0)
+            {
+                _logger.LogWarning("ffmpeg produced empty/missing output file");
+                return null;
+            }
+
+            var wav = await File.ReadAllBytesAsync(tempOutput, ct);
+            _logger.LogDebug("OGG→WAV conversion done: {Bytes} bytes", wav.Length);
+            return wav;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "OGG→WAV conversion failed");
             return null;
+        }
+        finally
+        {
+            if (File.Exists(tempInput))  File.Delete(tempInput);
+            if (File.Exists(tempOutput)) File.Delete(tempOutput);
         }
     }
 
